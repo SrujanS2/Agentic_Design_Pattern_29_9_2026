@@ -75,7 +75,7 @@ the calculator.
 ### Prerequisites
 
 - Python 3.10+
-- An [OpenAI API key](https://platform.openai.com/api-keys)
+- An [OpenAI API key]<your_api_key>
 
 ### 1. Clone the repository
 
