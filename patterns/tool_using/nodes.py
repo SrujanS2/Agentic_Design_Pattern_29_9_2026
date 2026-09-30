@@ -1,79 +1,33 @@
 from config.llm import get_llm
-from .state import PlanState
+from tools.calculator import calculator
+from .state import AgentState
 
 llm = get_llm()
 
-# -------------------------------
-# PLANNER AGENT (WITH EXAMPLES)
-# -------------------------------
-def planner(state: PlanState):
-    print("\n[Planner] Creating execution plan...")
-
+def reasoning_agent(state: AgentState):
     prompt = f"""
-            You are a planning agent.
+                You are a math reasoning agent.
 
-            Your job:
-            - Break the task into AT MOST 3 steps
-            - Each step MUST start with a dash (-)
-            - Do NOT add explanations
+                Convert the question into a valid Python math expression.
+                Return ONLY the expression.
 
-            Examples:
+                Examples:
+                Question: What is the sum of 5 and 3?
+                Expression: 5 + 3
 
-            Task: Explain Python basics
-            Plan:
-            - Explain what Python is
-            - Give 2 simple Python examples
-            - Create 2 quiz questions
+                Question: What is the average of 100 and 200?
+                Expression: (100 + 200) / 2
 
-            Task: Summarize a research paper
-            Plan:
-            - Identify the main topic
-            - Summarize key contributions
-            - List 2 limitations
+                Question: What is the square of the average of 100 and 200?
+                Expression: ((100 + 200) / 2) ** 2
 
-            Now plan the following task:
+                Question: {state['question']}
+                Expression:
+                """
+    expression = llm.invoke(prompt).content.strip()
+    
+    return {"expression": expression}
 
-            Task: {state['task']}
-            Plan:
-            """
-
-    response = llm.invoke(prompt).content.strip()
-    plan = response.split("\n")
-
-    print("[Planner] Generated plan:")
-    for step in plan:
-        print(step)
-
-    return {"plan": plan}
-
-# -------------------------------
-# EXECUTOR AGENT
-# -------------------------------
-def executor(state: PlanState):
-    print("\n[Executor] Executing plan...")
-
-    results = []
-
-    for step in state["plan"]:
-        step = step.strip()
-
-        # Safety checks
-        if not step:
-            continue
-        if not step.startswith("-"):
-            continue
-
-        print(f"[Executor] Running step: {step}")
-
-        prompt =f"""
-                Execute the following step clearly and concisely.
-                
-                Step:
-                {step}
-            """
-
-        response = llm.invoke(prompt).content
-        # response = response.content
-        results.append(response)
-
-    return {"output": "\n\n".join(results)}
+def tool_executor(state: AgentState):
+    result = calculator(state["expression"])
+    return {"result": result}

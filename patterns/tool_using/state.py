@@ -1,6 +1,6 @@
-from typing import TypedDict, List
+from typing import TypedDict
 
-class PlanState(TypedDict):
-    task: str
-    plan: List[str]
-    output: str
+class AgentState(TypedDict):
+    question: str
+    expression: str
+    result: str

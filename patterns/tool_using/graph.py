@@ -1,15 +1,15 @@
 from langgraph.graph import StateGraph, END
-from .state import PlanState
-from .nodes import planner, executor
+from .state import AgentState
+from .nodes import reasoning_agent, tool_executor
 
 def build_graph():
-    graph = StateGraph(PlanState)
+    graph = StateGraph(AgentState)
 
-    graph.add_node("planner", planner)
-    graph.add_node("executor", executor)
+    graph.add_node("reasoning_agent", reasoning_agent)
+    graph.add_node("math_agent", tool_executor)
 
-    graph.set_entry_point("planner")
-    graph.add_edge("planner", "executor")
-    graph.add_edge("executor", END)
+    graph.set_entry_point("reasoning_agent")
+    graph.add_edge("reasoning_agent", "math_agent")
+    graph.add_edge("math_agent", END)
 
     return graph.compile()

@@ -2,17 +2,19 @@ import sys
 import os
 import time
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Ensure the project root is on the Python path so internal imports work
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from patterns.tool_using.run import run_question  # noqa: E402
+from patterns.tool_using.graph import build_graph as build_tool_graph  # noqa: E402
+from patterns.planner_executor.graph import build_graph as build_planner_graph  # noqa: E402
 
 # ──────────────────────────────────────────────
 # Page Configuration
 # ──────────────────────────────────────────────
 st.set_page_config(
-    page_title="Agentic AI – Tool-Using Pattern",
+    page_title="Agentic AI – Patterns",
     page_icon="🤖",
     layout="centered",
 )
@@ -134,6 +136,8 @@ st.markdown(
     /* ══════════════════════════════════════════
        TEXT AREA (output box) – transparent + black text
        ══════════════════════════════════════════ */
+    .stTextArea [data-baseweb="textarea"],
+    .stTextArea [data-baseweb="base-input"],
     .stTextArea textarea,
     .stTextArea textarea:disabled {
         background: transparent !important;
@@ -291,42 +295,99 @@ st.markdown(
 )
 
 # ──────────────────────────────────────────────
-# Sidebar – Example Questions
+# Global Cursor Bubbles Animation
+# ──────────────────────────────────────────────
+components.html(
+    """
+    <script>
+    const doc = window.parent.document;
+    if (!doc.getElementById("cursor-bubble-script")) {
+        const style = doc.createElement('style');
+        style.innerHTML = `
+            .cursor-bubble {
+                position: fixed;
+                width: 16px;
+                height: 16px;
+                background: radial-gradient(circle, rgba(165, 214, 167, 0.9) 0%, rgba(165, 214, 167, 0) 80%);
+                border-radius: 50%;
+                pointer-events: none;
+                z-index: 99999;
+                transform: translate(-50%, -50%);
+                animation: bubble-fade 0.6s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+            }
+            @keyframes bubble-fade {
+                0% { transform: translate(-50%, -50%) scale(0.5); opacity: 1; }
+                100% { transform: translate(-50%, -150%) scale(2.5); opacity: 0; }
+            }
+        `;
+        doc.head.appendChild(style);
+
+        doc.addEventListener('mousemove', function(e) {
+            // throttle bubble creation slightly
+            if (Math.random() > 0.4) {
+                const bubble = doc.createElement('div');
+                bubble.className = 'cursor-bubble';
+                bubble.style.left = e.clientX + 'px';
+                bubble.style.top = e.clientY + 'px';
+                doc.body.appendChild(bubble);
+                setTimeout(() => { bubble.remove(); }, 600);
+            }
+        });
+
+        const marker = doc.createElement('div');
+        marker.id = "cursor-bubble-script";
+        doc.body.appendChild(marker);
+    }
+    </script>
+    """,
+    height=0,
+)
+
+
+# ──────────────────────────────────────────────
+# Sidebar – Pattern Selection & Example Questions
 # ──────────────────────────────────────────────
 with st.sidebar:
+    st.markdown("### 🎛️ Select Pattern")
+    pattern = st.radio("Choose the Agent Pattern:", ["Tool-Using Agent", "Planner-Executor Agent"])
+    
+    st.divider()
+
     st.markdown("### 📌 Example Questions")
 
-    st.markdown("**🔢 Math**")
-    examples_math = [
-        "What is the sum of 5 and 3?",
-        "What is the square of the average of 10 and 5?",
-        "What is 2 raised to the power of 10?",
-        "What is 15% of 200?",
-    ]
-    for ex in examples_math:
+    if pattern == "Tool-Using Agent":
+        examples = [
+            "What is the sum of 5 and 3?",
+            "What is the square of the average of 10 and 5?",
+            "What is 2 raised to the power of 10?",
+            "What is 15% of 200?",
+        ]
+    else:
+        examples = [
+            "Create a simple 3-step plan for launching an AI chatbot product.",
+            "Write a short guide on how to bake a chocolate cake.",
+            "Explain how quantum computing works.",
+        ]
+
+    for ex in examples:
         if st.button(ex, key=f"ex_{ex}", use_container_width=True):
             st.session_state["prefill"] = ex
 
     st.divider()
-
-    st.markdown("**💡 General Knowledge**")
-    examples_general = [
-        "Define AI",
-        "Who invented the telephone?",
-        "What is photosynthesis?",
-        "Explain the theory of relativity in simple terms",
-    ]
-    for ex in examples_general:
-        if st.button(ex, key=f"ex_{ex}", use_container_width=True):
-            st.session_state["prefill"] = ex
-
-    st.divider()
-    st.caption(
-        "**How it works**\n\n"
-        "1️⃣ Reasoning Agent classifies your question\n\n"
-        "2️⃣ Math → Calculator tool | General → LLM fallback\n\n"
-        "3️⃣ You get a precise answer either way 🎯"
-    )
+    if pattern == "Tool-Using Agent":
+        st.caption(
+            "**How it works**\n\n"
+            "1️⃣ Agent parses math question to expression\n\n"
+            "2️⃣ Tool executes expression\n\n"
+            "3️⃣ Returns precise result 🎯"
+        )
+    else:
+        st.caption(
+            "**How it works**\n\n"
+            "1️⃣ Planner breaks task into steps\n\n"
+            "2️⃣ Executor runs each step\n\n"
+            "3️⃣ Combines results 🎯"
+        )
 
 # ──────────────────────────────────────────────
 # Hero Header (native Streamlit)
@@ -339,12 +400,12 @@ with col_icon:
         unsafe_allow_html=True,
     )
 with col_title:
-    st.markdown("## Agentic AI – Tool-Using Pattern")
+    st.markdown(f"## Agentic AI – {pattern}")
 
-st.markdown(
-    "Ask a **math question** or a **general knowledge question** — "
-    "the agent routes it automatically."
-)
+if pattern == "Tool-Using Agent":
+    st.markdown("Ask a **math question** — the agent extracts the formula and calculates it.")
+else:
+    st.markdown("Give a **complex task** — the agent plans it out and executes each step.")
 
 st.divider()
 
@@ -353,15 +414,15 @@ st.divider()
 # ──────────────────────────────────────────────
 prefill = st.session_state.pop("prefill", "")
 question = st.text_input(
-    "Your question",
+    "Your question or task",
     value=prefill,
-    placeholder="e.g.  What is the cube root of 27?   or   Define machine learning",
+    placeholder="Enter your prompt here...",
     label_visibility="collapsed",
 )
 
 _, center_col, _ = st.columns([1, 1, 1])
 with center_col:
-    ask_clicked = st.button("🚀  Ask the Agent", use_container_width=True, type="primary")
+    ask_clicked = st.button("🚀  Run Agent", use_container_width=True, type="primary")
 
 # ──────────────────────────────────────────────
 # Run Agent & Display Results
@@ -378,53 +439,92 @@ if ask_clicked and question.strip():
     )
 
     try:
-        result = run_question(question.strip())
-        thinking_placeholder.empty()
-
-        category = result.get("category", "GENERAL")
-        is_math = category == "MATH"
-
-        # Wrap output in a fade-in div
         st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+        
+        if pattern == "Tool-Using Agent":
+            app_graph = build_tool_graph()
+            result = app_graph.invoke({"question": question.strip()})
+            thinking_placeholder.empty()
 
-        # ── Category badge ──
-        if is_math:
-            st.success("🔢  **Category: Math**")
+            st.success("🔢  **Mode: Tool-Using Agent**")
+            
+            if result.get("expression"):
+                st.markdown("**📐 Extracted Expression**")
+                st.code(result["expression"], language="python")
+                
+            st.markdown("**✅ Result**")
+            result_text = str(result.get("result", ""))
+            result_html = f'''<div style="height: 80px; overflow-y: auto; padding: 10px; background: transparent !important; color: #000000; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif;">{result_text}</div>'''
+            st.markdown(result_html, unsafe_allow_html=True)
+            
         else:
-            st.info("💡  **Category: General Knowledge**")
+            app_graph = build_planner_graph()
+            result = app_graph.invoke({"task": question.strip()})
+            thinking_placeholder.empty()
 
-        # ── Expression (math only) ──
-        if is_math and result.get("expression"):
-            st.markdown("**📐 Expression**")
-            st.code(result["expression"], language="python")
-
-        # ── Answer output box ──
-        st.markdown("**✅ Answer**")
-        st.text_area(
-            "Answer output",
-            value=result["result"],
-            height=180 if not is_math else 80,
-            disabled=True,
-            label_visibility="collapsed",
-        )
+            st.info("📝  **Mode: Planner-Executor Agent**")
+            
+            if result.get("plan"):
+                st.markdown("**📋 Execution Plan**")
+                plan_text = "\\n".join(result["plan"])
+                st.code(plan_text, language="markdown")
+                
+            st.markdown("**✅ Final Output**")
+            output_text = str(result.get("output", ""))
+            output_html = f'''<div style="height: 300px; overflow-y: auto; padding: 10px; background: transparent !important; color: #000000; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif;">{output_text}</div>'''
+            st.markdown(output_html, unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
 
-        # Fun confetti for math answers
-        if is_math:
-            time.sleep(0.3)
-            st.balloons()
+        time.sleep(0.1)
+        
+        # Blaster animation instead of balloons
+        components.html(
+            """
+            <script>
+            const doc = window.parent.document;
+            function blast() {
+                for(let i=0; i<25; i++) {
+                    setTimeout(() => {
+                        const laser = doc.createElement('div');
+                        laser.style.position = 'fixed';
+                        laser.style.top = '-150px';
+                        laser.style.left = Math.random() * 100 + 'vw';
+                        laser.style.width = (Math.random() * 4 + 2) + 'px';
+                        laser.style.height = (Math.random() * 120 + 60) + 'px';
+                        laser.style.background = 'linear-gradient(to bottom, rgba(255,255,255,0), #66bb6a, #a5d6a7, #ffffff)';
+                        laser.style.boxShadow = '0 0 15px #66bb6a, 0 0 30px #a5d6a7';
+                        laser.style.borderRadius = '50px';
+                        laser.style.zIndex = '999999';
+                        laser.style.pointerEvents = 'none';
+                        doc.body.appendChild(laser);
+                        
+                        laser.animate([
+                            { top: '-150px' },
+                            { top: '120vh' }
+                        ], {
+                            duration: Math.random() * 500 + 400,
+                            easing: 'ease-in'
+                        }).onfinish = () => laser.remove();
+                    }, Math.random() * 1200);
+                }
+            }
+            blast();
+            </script>
+            """,
+            height=0,
+        )
 
     except Exception as e:
         thinking_placeholder.empty()
         st.error(f"Something went wrong: {e}")
 
 elif ask_clicked:
-    st.warning("⚠️ Please enter a question first.")
+    st.warning("⚠️ Please enter a prompt first.")
 
 # ──────────────────────────────────────────────
 # Footer
 # ──────────────────────────────────────────────
 st.markdown("")
 st.divider()
-st.caption("Built with **LangGraph** · **LangChain** · **Streamlit**  |  Agentic Design Pattern")
+st.caption("Built with **LangGraph** · **LangChain** · **Streamlit**  |  Agentic Design Patterns")

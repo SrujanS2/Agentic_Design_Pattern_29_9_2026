@@ -1,14 +1,10 @@
-from patterns.planner_executor.graph import build_graph
-import json
+from .graph import build_graph
 
-def run_task(task: str):
-    app = build_graph()
-    return app.invoke({"task": task})
+app = build_graph()
 
-task = "Create a simple 3-step plan for launching an AI chatbot product."
-result = run_task(task)
-print(json.dumps(result, indent=2, ensure_ascii=False))
+result = app.invoke({
+    "question": "What is the square of the average of 10 and 5?"
+})
 
-"""
-Create a simple 3-step plan for launching an AI chatbot product.
-"""
+print("\n\nResult for Tool-Using Agent:")
+print(result)
