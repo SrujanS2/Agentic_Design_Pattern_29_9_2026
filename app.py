@@ -10,6 +10,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from patterns.tool_using.graph import build_graph as build_tool_graph  # noqa: E402
 from patterns.planner_executor.graph import build_graph as build_planner_graph  # noqa: E402
 from patterns.Supervisor_worker.graph import build_graph as build_supervisor_graph  # noqa: E402
+from patterns.Reflection.graph import build_graph as build_reflection_graph  # noqa: E402
 
 # ──────────────────────────────────────────────
 # Page Configuration
@@ -373,7 +374,8 @@ with st.sidebar:
     pattern = st.radio("Choose the Agent Pattern:", [
         "Tool-Using Agent", 
         "Planner-Executor Agent", 
-        "Supervisor-Worker Agent"
+        "Supervisor-Worker Agent",
+        "Reflection Agent"
     ])
     
     st.divider()
@@ -393,11 +395,16 @@ with st.sidebar:
             "Write a short guide on how to bake a chocolate cake.",
             "Explain how quantum computing works.",
         ]
-    else:
+    elif pattern == "Supervisor-Worker Agent":
         examples = [
             "What is the square of the average of 10 and 5?",
             "What is the leave balance for Alice?",
             "Define AI",
+        ]
+    else:
+        examples = [
+            "Explain why Python is a good language for beginners in exactly 2 sentences. Mention simple syntax, strong community support, and the availability of libraries. Do not use fluff or extra paragraphs.",
+            "Write a haiku about artificial intelligence.",
         ]
 
     for ex in examples:
@@ -419,12 +426,19 @@ with st.sidebar:
             "2️⃣ Executor runs each step\n\n"
             "3️⃣ Combines results 🎯"
         )
-    else:
+    elif pattern == "Supervisor-Worker Agent":
         st.caption(
             "**How it works**\n\n"
             "1️⃣ Supervisor routes query to specialized worker\n\n"
             "2️⃣ Math Worker or Leave Worker processes it\n\n"
             "3️⃣ Returns the correct result 🎯"
+        )
+    else:
+        st.caption(
+            "**How it works**\n\n"
+            "1️⃣ Generator drafts an answer\n\n"
+            "2️⃣ Critic reviews the draft\n\n"
+            "3️⃣ Generator refines until approved 🎯"
         )
 
 # ──────────────────────────────────────────────
@@ -444,8 +458,10 @@ if pattern == "Tool-Using Agent":
     st.markdown("Ask a **math question** — the agent extracts the formula and calculates it.")
 elif pattern == "Planner-Executor Agent":
     st.markdown("Give a **complex task** — the agent plans it out and executes each step.")
-else:
+elif pattern == "Supervisor-Worker Agent":
     st.markdown("Ask a **math** or **leave balance** question — the Supervisor routes it.")
+else:
+    st.markdown("Give a **constrained writing task** — the agent drafts, reviews, and refines it until it perfectly matches your criteria.")
 
 st.divider()
 
@@ -531,7 +547,7 @@ for msg in st.session_state["messages"]:
             output_text = str(result.get("output", ""))
             st.markdown(f'''<div style="height: 300px; overflow-y: auto; padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif; font-weight: 500;">{output_text}</div>''', unsafe_allow_html=True)
             
-        else:
+        elif pattern_used == "Supervisor-Worker Agent":
             st.warning("👥  **Mode: Supervisor-Worker Agent**")
             if result.get("worker"):
                 st.markdown(f"**🧭 Routed to Worker:** <span style='color:#1b5e20; font-weight:bold; font-family:monospace;'>{result['worker'].upper()}</span>", unsafe_allow_html=True)
@@ -544,6 +560,17 @@ for msg in st.session_state["messages"]:
             st.markdown("**✅ Final Output**")
             output_text = str(result.get("result", ""))
             st.markdown(f'''<div style="height: 100px; overflow-y: auto; padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif; font-weight: 500;">{output_text}</div>''', unsafe_allow_html=True)
+            
+        else:
+            st.info("🔄  **Mode: Reflection Agent**")
+            attempts = result.get("attempts", 1)
+            st.markdown(f"**🔁 Iterations required:** `{attempts}`")
+            if result.get("feedback"):
+                st.markdown("**🔍 Final Critic Feedback**")
+                st.markdown(f'''<div style="padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-weight: 600;">{result["feedback"]}</div>''', unsafe_allow_html=True)
+            st.markdown("**✅ Final Output**")
+            output_text = str(result.get("final_answer", ""))
+            st.markdown(f'''<div style="height: 150px; overflow-y: auto; padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif; font-weight: 500;">{output_text}</div>''', unsafe_allow_html=True)
 
         st.markdown('</div>', unsafe_allow_html=True)
         st.markdown("<br>", unsafe_allow_html=True)
@@ -584,9 +611,17 @@ if prompt and prompt.strip():
         elif pattern == "Planner-Executor Agent":
             app_graph = build_planner_graph()
             result = app_graph.invoke({"task": prompt.strip()})
-        else:
+        elif pattern == "Supervisor-Worker Agent":
             app_graph = build_supervisor_graph()
             result = app_graph.invoke({"query": prompt.strip()})
+        else:
+            app_graph = build_reflection_graph()
+            result = app_graph.invoke({
+                "task": prompt.strip(),
+                "attempts": 0,
+                "needs_revision": True,
+                "status": "pending"
+            })
         
         st.session_state["messages"].append({
             "role": "assistant",
