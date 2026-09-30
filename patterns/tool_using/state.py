@@ -1,8 +1,6 @@
-from typing import TypedDict, Optional
+from typing import TypedDict, List
 
-
-class AgentState(TypedDict):
-    question: str
-    category: str           # "MATH" or "GENERAL"
-    expression: Optional[str]
-    result: str
+class PlanState(TypedDict):
+    task: str
+    plan: List[str]
+    output: str

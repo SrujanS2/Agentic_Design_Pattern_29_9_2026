@@ -1,76 +1,79 @@
 from config.llm import get_llm
-from tools.calculator import calculator
-from .state import AgentState
+from .state import PlanState
 
 llm = get_llm()
 
+# -------------------------------
+# PLANNER AGENT (WITH EXAMPLES)
+# -------------------------------
+def planner(state: PlanState):
+    print("\n[Planner] Creating execution plan...")
 
-def reasoning_agent(state: AgentState) -> dict:
-    """
-    Classifies the user's question as MATH or GENERAL.
-    If MATH, converts the question into a Python math expression.
-    If GENERAL, sets category so the router sends it to the fallback agent.
-    """
-    prompt = f"""You are a smart classification and reasoning agent.
+    prompt = f"""
+            You are a planning agent.
 
-First, determine if the following question is a MATH question (requires arithmetic
-calculation) or a GENERAL knowledge question.
+            Your job:
+            - Break the task into AT MOST 3 steps
+            - Each step MUST start with a dash (-)
+            - Do NOT add explanations
 
-If it is a MATH question:
-  - Respond with exactly two lines:
-    Line 1: MATH
-    Line 2: A valid Python math expression that answers the question.
+            Examples:
 
-If it is a GENERAL question:
-  - Respond with exactly one line:
-    GENERAL
+            Task: Explain Python basics
+            Plan:
+            - Explain what Python is
+            - Give 2 simple Python examples
+            - Create 2 quiz questions
 
-Examples:
+            Task: Summarize a research paper
+            Plan:
+            - Identify the main topic
+            - Summarize key contributions
+            - List 2 limitations
 
-Question: What is the sum of 5 and 3?
-MATH
-5 + 3
+            Now plan the following task:
 
-Question: What is the average of 100 and 200?
-MATH
-(100 + 200) / 2
+            Task: {state['task']}
+            Plan:
+            """
 
-Question: Define AI
-GENERAL
-
-Question: Who is the president of the United States?
-GENERAL
-
-Question: What is the square of the average of 100 and 200?
-MATH
-((100 + 200) / 2) ** 2
-
-Question: {state['question']}
-"""
     response = llm.invoke(prompt).content.strip()
-    lines = response.split("\n")
+    plan = response.split("\n")
 
-    category = lines[0].strip().upper()
+    print("[Planner] Generated plan:")
+    for step in plan:
+        print(step)
 
-    if category == "MATH" and len(lines) >= 2:
-        expression = lines[1].strip()
-        return {"category": "MATH", "expression": expression}
-    else:
-        return {"category": "GENERAL", "expression": ""}
+    return {"plan": plan}
 
+# -------------------------------
+# EXECUTOR AGENT
+# -------------------------------
+def executor(state: PlanState):
+    print("\n[Executor] Executing plan...")
 
-def tool_executor(state: AgentState) -> dict:
-    """Executes the calculator tool on the extracted math expression."""
-    result = calculator(state["expression"])
-    return {"result": result}
+    results = []
 
+    for step in state["plan"]:
+        step = step.strip()
 
-def general_agent(state: AgentState) -> dict:
-    """Fallback agent that answers general (non-math) questions using the LLM."""
-    prompt = f"""You are a helpful, knowledgeable AI assistant.
-Answer the following question clearly and concisely.
+        # Safety checks
+        if not step:
+            continue
+        if not step.startswith("-"):
+            continue
 
-Question: {state['question']}
-"""
-    response = llm.invoke(prompt).content.strip()
-    return {"result": response}
+        print(f"[Executor] Running step: {step}")
+
+        prompt =f"""
+                Execute the following step clearly and concisely.
+                
+                Step:
+                {step}
+            """
+
+        response = llm.invoke(prompt).content
+        # response = response.content
+        results.append(response)
+
+    return {"output": "\n\n".join(results)}

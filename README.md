@@ -1,15 +1,24 @@
-# 🤖 Agentic Design Pattern – Tool-Using Agent
+# 🤖 Agentic Design Patterns
 
-A hands-on implementation of the **Tool-Using** agentic design pattern built with
+A hands-on implementation of various **Agentic Design Patterns** built with
 **LangGraph**, **LangChain**, and **Streamlit**.
 
-The agent intelligently **classifies** every incoming question and **routes** it to
+## 🧠 Implemented Patterns
+
+### 1. Tool-Using Agent
+
+The tool-using agent intelligently **classifies** every incoming question and **routes** it to
 the appropriate handler:
 
 | Category | Handler | Description |
 |---|---|---|
 | 🔢 **Math** | `math_agent` (calculator tool) | Converts the question into a Python expression and evaluates it |
 | 💡 **General** | `general_agent` (LLM fallback) | Answers general-knowledge questions directly via the LLM |
+
+### 2. Planner-Executor Pattern
+
+The **Planner-Executor** pattern breaks down complex tasks into manageable sub-tasks before execution.
+See the [Planner-Executor Documentation](planner_executor.md) for full details on its architecture and implementation.
 
 ---
 
@@ -28,6 +37,7 @@ Agentic_Design_Pattern_29_9_2026/
 │       └── run.py                  # CLI runner & reusable run_question()
 ├── tools/
 │   └── calculator.py               # Calculator tool (eval-based)
+├── planner_executor.md             # Planner-Executor documentation
 ├── requirements.txt
 ├── .env                            # API keys (not committed)
 ├── .gitignore
