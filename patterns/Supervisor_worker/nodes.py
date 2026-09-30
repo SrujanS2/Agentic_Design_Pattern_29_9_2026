@@ -15,10 +15,12 @@ def supervisor(state: SupervisorWorkerState):
     Return ONLY one word:
     - math
     - leave
+    - general
 
     Use:
     - math → calculations, percentages, averages, totals
     - leave → leave balance, vacation, sick leave, PTO
+    - general → generic questions, definitions, general knowledge, greetings
 
     Request: {query}
     """
@@ -27,8 +29,10 @@ def supervisor(state: SupervisorWorkerState):
 
     if "leave" in worker:
         worker = "leave"
-    else:
+    elif "math" in worker:
         worker = "math"
+    else:
+        worker = "general"
 
     print(f"[Supervisor] Worker selected: {worker}")
 
@@ -82,4 +86,22 @@ def leaves_balance(state: SupervisorWorkerState):
         "employee_name": employee_name,
         "leave_balance": balance,
         "result": balance
+    }
+
+
+def general_agent(state: SupervisorWorkerState):
+    query = state["query"]
+
+    prompt = f"""
+    Answer the following question clearly and concisely.
+
+    Question: {query}
+    """
+
+    result = llm.invoke(prompt).content.strip()
+
+    print(f"[General Agent] Answering generic question")
+
+    return {
+        "result": result
     }

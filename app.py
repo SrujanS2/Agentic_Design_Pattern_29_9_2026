@@ -9,6 +9,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from patterns.tool_using.graph import build_graph as build_tool_graph  # noqa: E402
 from patterns.planner_executor.graph import build_graph as build_planner_graph  # noqa: E402
+from patterns.Supervisor_worker.graph import build_graph as build_supervisor_graph  # noqa: E402
 
 # ──────────────────────────────────────────────
 # Page Configuration
@@ -54,13 +55,13 @@ st.markdown(
         background: transparent !important;
     }
 
-    /* Force black on all Streamlit markdown / text elements */
+    /* Force dark green on all Streamlit markdown / text elements */
     .stApp p, .stApp span, .stApp label, .stApp li,
     .stApp h1, .stApp h2, .stApp h3, .stApp h4,
     .stApp .stMarkdown, .stApp .stCaption,
     div[data-testid="stText"],
     div[data-testid="stCaptionContainer"] * {
-        color: #000000 !important;
+        color: #1b5e20 !important;
     }
 
     /* ══════════════════════════════════════════
@@ -122,7 +123,7 @@ st.markdown(
         border-radius: 12px !important;
         padding: 0.75rem 1rem !important;
         font-size: 1.05rem !important;
-        color: #000000 !important;
+        color: #1b5e20 !important;
         transition: all 0.3s ease !important;
     }
     .stTextInput input:focus {
@@ -134,7 +135,27 @@ st.markdown(
     }
 
     /* ══════════════════════════════════════════
-       TEXT AREA (output box) – transparent + black text
+       CHAT INPUT
+       ══════════════════════════════════════════ */
+    div[data-testid="stChatInput"] {
+        background: transparent !important;
+    }
+    div[data-testid="stChatInput"] textarea {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 2px solid #a5d6a7 !important;
+        border-radius: 12px !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    div[data-testid="stChatInput"] textarea::placeholder {
+        color: #757575 !important;
+    }
+    div[data-testid="stChatInput"] button {
+        color: #000000 !important;
+    }
+
+    /* ══════════════════════════════════════════
+       TEXT AREA (output box) – transparent + dark green text
        ══════════════════════════════════════════ */
     .stTextArea [data-baseweb="textarea"],
     .stTextArea [data-baseweb="base-input"],
@@ -142,8 +163,8 @@ st.markdown(
     .stTextArea textarea:disabled {
         background: transparent !important;
         background-color: transparent !important;
-        color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important;
+        color: #1b5e20 !important;
+        -webkit-text-fill-color: #1b5e20 !important;
         border: none !important;
         border-radius: 0 !important;
         outline: none !important;
@@ -174,7 +195,7 @@ st.markdown(
        ══════════════════════════════════════════ */
     div[data-testid="stAlert"] p,
     div[data-testid="stAlert"] span {
-        color: #000000 !important;
+        color: #1b5e20 !important;
     }
 
     /* ══════════════════════════════════════════
@@ -273,7 +294,7 @@ st.markdown(
         animation:
             typewriter 2s steps(40,end) 0.5s 1 normal both,
             blink-caret 0.75s step-end infinite;
-        color: #000000 !important;
+        color: #1b5e20 !important;
     }
     </style>
 
@@ -349,7 +370,11 @@ components.html(
 # ──────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 🎛️ Select Pattern")
-    pattern = st.radio("Choose the Agent Pattern:", ["Tool-Using Agent", "Planner-Executor Agent"])
+    pattern = st.radio("Choose the Agent Pattern:", [
+        "Tool-Using Agent", 
+        "Planner-Executor Agent", 
+        "Supervisor-Worker Agent"
+    ])
     
     st.divider()
 
@@ -362,11 +387,17 @@ with st.sidebar:
             "What is 2 raised to the power of 10?",
             "What is 15% of 200?",
         ]
-    else:
+    elif pattern == "Planner-Executor Agent":
         examples = [
             "Create a simple 3-step plan for launching an AI chatbot product.",
             "Write a short guide on how to bake a chocolate cake.",
             "Explain how quantum computing works.",
+        ]
+    else:
+        examples = [
+            "What is the square of the average of 10 and 5?",
+            "What is the leave balance for Alice?",
+            "Define AI",
         ]
 
     for ex in examples:
@@ -381,12 +412,19 @@ with st.sidebar:
             "2️⃣ Tool executes expression\n\n"
             "3️⃣ Returns precise result 🎯"
         )
-    else:
+    elif pattern == "Planner-Executor Agent":
         st.caption(
             "**How it works**\n\n"
             "1️⃣ Planner breaks task into steps\n\n"
             "2️⃣ Executor runs each step\n\n"
             "3️⃣ Combines results 🎯"
+        )
+    else:
+        st.caption(
+            "**How it works**\n\n"
+            "1️⃣ Supervisor routes query to specialized worker\n\n"
+            "2️⃣ Math Worker or Leave Worker processes it\n\n"
+            "3️⃣ Returns the correct result 🎯"
         )
 
 # ──────────────────────────────────────────────
@@ -404,31 +442,132 @@ with col_title:
 
 if pattern == "Tool-Using Agent":
     st.markdown("Ask a **math question** — the agent extracts the formula and calculates it.")
-else:
+elif pattern == "Planner-Executor Agent":
     st.markdown("Give a **complex task** — the agent plans it out and executes each step.")
+else:
+    st.markdown("Ask a **math** or **leave balance** question — the Supervisor routes it.")
 
 st.divider()
 
 # ──────────────────────────────────────────────
-# Input Area
+# Chat History Initialization
 # ──────────────────────────────────────────────
-prefill = st.session_state.pop("prefill", "")
-question = st.text_input(
-    "Your question or task",
-    value=prefill,
-    placeholder="Enter your prompt here...",
-    label_visibility="collapsed",
-)
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 
-_, center_col, _ = st.columns([1, 1, 1])
-with center_col:
-    ask_clicked = st.button("🚀  Run Agent", use_container_width=True, type="primary")
+# Trigger blaster from previous run
+if st.session_state.get("trigger_blaster"):
+    components.html(
+        """
+        <script>
+        const doc = window.parent.document;
+        function blast() {
+            for(let i=0; i<25; i++) {
+                setTimeout(() => {
+                    const laser = doc.createElement('div');
+                    laser.style.position = 'fixed';
+                    laser.style.top = '-150px';
+                    laser.style.left = Math.random() * 100 + 'vw';
+                    laser.style.width = (Math.random() * 4 + 2) + 'px';
+                    laser.style.height = (Math.random() * 120 + 60) + 'px';
+                    laser.style.background = 'linear-gradient(to bottom, rgba(255,255,255,0), #66bb6a, #a5d6a7, #ffffff)';
+                    laser.style.boxShadow = '0 0 15px #66bb6a, 0 0 30px #a5d6a7';
+                    laser.style.borderRadius = '50px';
+                    laser.style.zIndex = '999999';
+                    laser.style.pointerEvents = 'none';
+                    doc.body.appendChild(laser);
+                    
+                    laser.animate([
+                        { top: '-150px' },
+                        { top: '120vh' }
+                    ], {
+                        duration: Math.random() * 500 + 400,
+                        easing: 'ease-in'
+                    }).onfinish = () => laser.remove();
+                }, Math.random() * 1200);
+            }
+        }
+        blast();
+        </script>
+        """,
+        height=0,
+    )
+    st.session_state["trigger_blaster"] = False
 
 # ──────────────────────────────────────────────
-# Run Agent & Display Results
+# Render Chat History
 # ──────────────────────────────────────────────
-if ask_clicked and question.strip():
-    # Animated "thinking" placeholder
+for msg in st.session_state["messages"]:
+    if msg["role"] == "user":
+        st.markdown(f'''
+        <div style="text-align: right; margin-bottom: 20px;">
+            <div style="display: inline-block; padding: 12px 18px; background: rgba(46,125,50,0.15); border-radius: 18px 18px 0px 18px; color: #1b5e20; font-weight: 600;">
+                {msg["content"]}
+            </div>
+        </div>
+        ''', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="fade-in">', unsafe_allow_html=True)
+        result = msg["result"]
+        pattern_used = msg["pattern"]
+        
+        if pattern_used == "Tool-Using Agent":
+            st.success("🔢  **Mode: Tool-Using Agent**")
+            if result.get("expression"):
+                st.markdown("**📐 Extracted Expression**")
+                expr = result["expression"]
+                st.markdown(f'''<div style="padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-weight: 600;">{expr}</div>''', unsafe_allow_html=True)
+            st.markdown("**✅ Result**")
+            result_text = str(result.get("result", ""))
+            st.markdown(f'''<div style="height: 80px; overflow-y: auto; padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif; font-weight: 500;">{result_text}</div>''', unsafe_allow_html=True)
+            
+        elif pattern_used == "Planner-Executor Agent":
+            st.info("📝  **Mode: Planner-Executor Agent**")
+            if result.get("plan"):
+                st.markdown("**📋 Execution Plan**")
+                plan_text = "\\n".join(result["plan"])
+                st.markdown(f'''<div style="padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-weight: 600;">{plan_text}</div>''', unsafe_allow_html=True)
+            st.markdown("**✅ Final Output**")
+            output_text = str(result.get("output", ""))
+            st.markdown(f'''<div style="height: 300px; overflow-y: auto; padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif; font-weight: 500;">{output_text}</div>''', unsafe_allow_html=True)
+            
+        else:
+            st.warning("👥  **Mode: Supervisor-Worker Agent**")
+            if result.get("worker"):
+                st.markdown(f"**🧭 Routed to Worker:** <span style='color:#1b5e20; font-weight:bold; font-family:monospace;'>{result['worker'].upper()}</span>", unsafe_allow_html=True)
+            if result.get("expression"):
+                st.markdown("**📐 Extracted Expression**")
+                expr = result["expression"]
+                st.markdown(f'''<div style="padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: monospace; font-weight: 600;">{expr}</div>''', unsafe_allow_html=True)
+            if result.get("employee_name"):
+                st.markdown(f"**👤 Employee Identified:** <span style='color:#1b5e20; font-weight:bold; font-family:monospace;'>{result['employee_name']}</span>", unsafe_allow_html=True)
+            st.markdown("**✅ Final Output**")
+            output_text = str(result.get("result", ""))
+            st.markdown(f'''<div style="height: 100px; overflow-y: auto; padding: 10px; background: transparent !important; color: #1b5e20; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif; font-weight: 500;">{output_text}</div>''', unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+# ──────────────────────────────────────────────
+# Chat Input & Execution
+# ──────────────────────────────────────────────
+prompt = st.chat_input("Enter your prompt here...")
+prefill = st.session_state.pop("prefill", None)
+
+if prefill:
+    prompt = prefill
+
+if prompt and prompt.strip():
+    st.session_state["messages"].append({"role": "user", "content": prompt.strip()})
+    
+    st.markdown(f'''
+    <div style="text-align: right; margin-bottom: 20px;">
+        <div style="display: inline-block; padding: 12px 18px; background: rgba(46,125,50,0.15); border-radius: 18px 18px 0px 18px; color: #1b5e20; font-weight: 600;">
+            {prompt}
+        </div>
+    </div>
+    ''', unsafe_allow_html=True)
+
     thinking_placeholder = st.empty()
     thinking_placeholder.markdown(
         '<div class="fade-in" style="text-align:center; padding:1.2rem; color:#2e7d32; font-weight:600;">'
@@ -439,88 +578,28 @@ if ask_clicked and question.strip():
     )
 
     try:
-        st.markdown('<div class="fade-in">', unsafe_allow_html=True)
-        
         if pattern == "Tool-Using Agent":
             app_graph = build_tool_graph()
-            result = app_graph.invoke({"question": question.strip()})
-            thinking_placeholder.empty()
-
-            st.success("🔢  **Mode: Tool-Using Agent**")
-            
-            if result.get("expression"):
-                st.markdown("**📐 Extracted Expression**")
-                st.code(result["expression"], language="python")
-                
-            st.markdown("**✅ Result**")
-            result_text = str(result.get("result", ""))
-            result_html = f'''<div style="height: 80px; overflow-y: auto; padding: 10px; background: transparent !important; color: #000000; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif;">{result_text}</div>'''
-            st.markdown(result_html, unsafe_allow_html=True)
-            
-        else:
+            result = app_graph.invoke({"question": prompt.strip()})
+        elif pattern == "Planner-Executor Agent":
             app_graph = build_planner_graph()
-            result = app_graph.invoke({"task": question.strip()})
-            thinking_placeholder.empty()
-
-            st.info("📝  **Mode: Planner-Executor Agent**")
-            
-            if result.get("plan"):
-                st.markdown("**📋 Execution Plan**")
-                plan_text = "\\n".join(result["plan"])
-                st.code(plan_text, language="markdown")
-                
-            st.markdown("**✅ Final Output**")
-            output_text = str(result.get("output", ""))
-            output_html = f'''<div style="height: 300px; overflow-y: auto; padding: 10px; background: transparent !important; color: #000000; border: 1px solid rgba(46,125,50,0.3); border-radius: 8px; white-space: pre-wrap; font-family: 'Inter', sans-serif;">{output_text}</div>'''
-            st.markdown(output_html, unsafe_allow_html=True)
-
-        st.markdown('</div>', unsafe_allow_html=True)
-
-        time.sleep(0.1)
+            result = app_graph.invoke({"task": prompt.strip()})
+        else:
+            app_graph = build_supervisor_graph()
+            result = app_graph.invoke({"query": prompt.strip()})
         
-        # Blaster animation instead of balloons
-        components.html(
-            """
-            <script>
-            const doc = window.parent.document;
-            function blast() {
-                for(let i=0; i<25; i++) {
-                    setTimeout(() => {
-                        const laser = doc.createElement('div');
-                        laser.style.position = 'fixed';
-                        laser.style.top = '-150px';
-                        laser.style.left = Math.random() * 100 + 'vw';
-                        laser.style.width = (Math.random() * 4 + 2) + 'px';
-                        laser.style.height = (Math.random() * 120 + 60) + 'px';
-                        laser.style.background = 'linear-gradient(to bottom, rgba(255,255,255,0), #66bb6a, #a5d6a7, #ffffff)';
-                        laser.style.boxShadow = '0 0 15px #66bb6a, 0 0 30px #a5d6a7';
-                        laser.style.borderRadius = '50px';
-                        laser.style.zIndex = '999999';
-                        laser.style.pointerEvents = 'none';
-                        doc.body.appendChild(laser);
-                        
-                        laser.animate([
-                            { top: '-150px' },
-                            { top: '120vh' }
-                        ], {
-                            duration: Math.random() * 500 + 400,
-                            easing: 'ease-in'
-                        }).onfinish = () => laser.remove();
-                    }, Math.random() * 1200);
-                }
-            }
-            blast();
-            </script>
-            """,
-            height=0,
-        )
-
+        st.session_state["messages"].append({
+            "role": "assistant",
+            "pattern": pattern,
+            "result": result
+        })
+        
+        st.session_state["trigger_blaster"] = True
+        st.rerun()
+        
     except Exception as e:
         thinking_placeholder.empty()
         st.error(f"Something went wrong: {e}")
-
-elif ask_clicked:
-    st.warning("⚠️ Please enter a prompt first.")
 
 # ──────────────────────────────────────────────
 # Footer
