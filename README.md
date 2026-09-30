@@ -25,6 +25,10 @@ See the [Planner-Executor Documentation](planner_executor.md) for full details o
 The **Supervisor-Worker** pattern uses a central supervisor LLM to intelligently route queries to specialized worker agents (such as a Math Agent or a Leave Balance Agent). It now also features a general agent for generic queries.
 See the [Supervisor-Worker Documentation](supervisor_worker.md) for full details on its routing and implementation.
 
+### 4. Reflection Pattern
+
+The **Reflection** pattern allows an agent to evaluate its own previous responses and improve upon them based on self-critique or external feedback. It iteratively refines its output to achieve higher quality results.
+
 ---
 
 ## 📂 Project Structure
@@ -41,6 +45,11 @@ Agentic_Design_Pattern_29_9_2026/
 │   │   ├── graph.py                # LangGraph workflow with conditional routing
 │   │   └── run.py                  # CLI runner
 │   ├── planner_executor/
+│   │   ├── state.py                
+│   │   ├── nodes.py                
+│   │   ├── graph.py                
+│   │   └── run.py                  
+│   ├── Reflection/
 │   │   ├── state.py                
 │   │   ├── nodes.py                
 │   │   ├── graph.py                
