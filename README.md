@@ -20,6 +20,11 @@ the appropriate handler:
 The **Planner-Executor** pattern breaks down complex tasks into manageable sub-tasks before execution.
 See the [Planner-Executor Documentation](planner_executor.md) for full details on its architecture and implementation.
 
+### 3. Supervisor-Worker Pattern
+
+The **Supervisor-Worker** pattern uses a central supervisor LLM to intelligently route queries to specialized worker agents (such as a Math Agent or a Leave Balance Agent). It now also features a general agent for generic queries.
+See the [Supervisor-Worker Documentation](supervisor_worker.md) for full details on its routing and implementation.
+
 ---
 
 ## 📂 Project Structure
@@ -30,14 +35,26 @@ Agentic_Design_Pattern_29_9_2026/
 ├── config/
 │   └── llm.py                      # LLM configuration (OpenAI GPT-4o-mini)
 ├── patterns/
-│   └── tool_using/
-│       ├── state.py                # AgentState definition
-│       ├── nodes.py                # Agent nodes (reasoning, math, general)
-│       ├── graph.py                # LangGraph workflow with conditional routing
-│       └── run.py                  # CLI runner & reusable run_question()
+│   ├── tool_using/
+│   │   ├── state.py                # AgentState definition
+│   │   ├── nodes.py                # Agent nodes (reasoning, math, general)
+│   │   ├── graph.py                # LangGraph workflow with conditional routing
+│   │   └── run.py                  # CLI runner
+│   ├── planner_executor/
+│   │   ├── state.py                
+│   │   ├── nodes.py                
+│   │   ├── graph.py                
+│   │   └── run.py                  
+│   └── Supervisor_worker/
+│       ├── state.py                
+│       ├── nodes.py                
+│       ├── graph.py                
+│       └── run.py                  
 ├── tools/
-│   └── calculator.py               # Calculator tool (eval-based)
+│   ├── calculator.py               # Calculator tool (eval-based)
+│   └── leaves_db.py                # Leave balance SQLite tool
 ├── planner_executor.md             # Planner-Executor documentation
+├── supervisor_worker.md            # Supervisor-Worker documentation
 ├── requirements.txt
 ├── .env                            # API keys (not committed)
 ├── .gitignore
